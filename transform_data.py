@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 
 def transform_names(x):  # Приводит имена к одному формату
@@ -30,7 +32,8 @@ def clean_rangs(df): # Приводит ранги к одному формат�
 
 
 def transform_title(df):  # Приводит все строковые колонки к одному формату, кроме имен
-    to_title = ['Пол заемщика', 'Чин заемщика', 'Титул заемщика', 'Чин кредитора', 'Титул кредитора', 'Семейное положение', 'Семейное положение.1', 'Сословие заемщика', 'Сословие кредитора']
+    to_title = ['Пол заемщика', 'Чин заемщика', 'Титул заемщика', 'Чин кредитора', 'Титул кредитора',
+                'Семейное положение', 'Семейное положение.1', 'Сословие заемщика', 'Сословие кредитора']
     for el in to_title:
         df[el] = df[el].apply(lambda x : str(x).lower().title())
 
@@ -40,7 +43,7 @@ def transform_title(df):  # Приводит все строковые коло�
 def transform_prices(x): # Приводит цены в один формат
     tmp = str(x)
     if ',' in tmp[-3:] or '.' in tmp[-3:]:
-        tmp = tmp[:-3] + '.' + tmp[-2:]
+        tmp = tmp[:-3]
     tmp = tmp.replace(',', '')
     tmp = tmp.replace(' ', '')
     tmp =''.join(tmp.split())
@@ -77,30 +80,31 @@ def transform_columns(sup):
     return sup
 
 
-def rang_(input_string):
-    sup = str(input_string).split(', ')
-    return str(', '.join([str(x) + ' ранг' for x in sup]))
+# HERE BEGINS CODE UNDER CONSTRUCTION HERE BEGINS CODE UNDER CONSTRUCTION HERE BEGINS CODE UNDER CONSTRUCTION HERE BEGINS CODE UNDER CONSTRUCTION HERE BEGINS CODE UNDER CONSTRUCTION
+# HERE BEGINS CODE UNDER CONSTRUCTION HERE BEGINS CODE UNDER CONSTRUCTION HERE BEGINS CODE UNDER CONSTRUCTION HERE BEGINS CODE UNDER CONSTRUCTION HERE BEGINS CODE UNDER CONSTRUCTION
+# HERE BEGINS CODE UNDER CONSTRUCTION HERE BEGINS CODE UNDER CONSTRUCTION HERE BEGINS CODE UNDER CONSTRUCTION HERE BEGINS CODE UNDER CONSTRUCTION HERE BEGINS CODE UNDER CONSTRUCTION
+# HERE BEGINS CODE UNDER CONSTRUCTION HERE BEGINS CODE UNDER CONSTRUCTION HERE BEGINS CODE UNDER CONSTRUCTION HERE BEGINS CODE UNDER CONSTRUCTION HERE BEGINS CODE UNDER CONSTRUCTION
 
 
-def trim_df(df):
-    df.columns = list(map(lambda x: x.strip(), df.columns.tolist()))
-    df_obj = df.select_dtypes(['object'])
-    df[df_obj.columns] = df_obj.apply(lambda x: x.str.strip())
-    df['Сумма долга'] = df['Сумма долга'].apply(lambda x: x.replace(',', '.'))
-    df['Сумма долга'] = df['Сумма долга'].replace('неизвестно', 0)
-    df['Сумма долга'] = df['Сумма долга'].astype(np.float64)
-    df_obj = df.select_dtypes(['object'])
-    df[df_obj.columns] = df_obj.apply(lambda x: x.str.title())
-    df['Ранг кредитора'] = df['Ранг кредитора'].astype('str')
-    df['Ранг заемщика'] = df['Ранг заемщика'].astype('str')
-    df['Ранг кредитора'] = df['Ранг кредитора'].apply(rang_)
-    df['Ранг заемщика'] = df['Ранг заемщика'].apply(rang_)
-    # df_obj = df.select_dtypes(['object'])
-    # df[df_obj.columns] = df_obj.astype('str')
-    df['Дата'] = df['Дата'].replace('-', np.nan)
-    df['Дата.1'] = df['Дата.1'].replace('-', np.nan)
-    df['Дата'] = pd.to_datetime(df['Дата'], format='%d.%m.%Y')
-    df['Дата.1'] = pd.to_datetime(df['Дата.1'], format='%d.%m.%Y')
+# def trim_df(df):
+#     df.columns = list(map(lambda x: x.strip(), df.columns.tolist()))
+#     df_obj = df.select_dtypes(['object'])
+#     df[df_obj.columns] = df_obj.apply(lambda x: x.str.strip())
+#     df['Сумма долга'] = df['Сумма долга'].apply(lambda x: x.replace(',', '.'))
+#     df['Сумма долга'] = df['Сумма долга'].replace('неизвестно', 0)
+#     df['Сумма долга'] = df['Сумма долга'].astype(np.float64)
+#     df_obj = df.select_dtypes(['object'])
+#     df[df_obj.columns] = df_obj.apply(lambda x: x.str.title())
+#     df['Ранг кредитора'] = df['Ранг кредитора'].astype('str')
+#     df['Ранг заемщика'] = df['Ранг заемщика'].astype('str')
+#     df['Ранг кредитора'] = df['Ранг кредитора'].apply(rang_)
+#     df['Ранг заемщика'] = df['Ранг заемщика'].apply(rang_)
+#     # df_obj = df.select_dtypes(['object'])
+#     # df[df_obj.columns] = df_obj.astype('str')
+#     df['Дата'] = df['Дата'].replace('-', np.nan)
+#     df['Дата.1'] = df['Дата.1'].replace('-', np.nan)
+#     df['Дата'] = pd.to_datetime(df['Дата'], format='%d.%m.%Y')
+#     df['Дата.1'] = pd.to_datetime(df['Дата.1'], format='%d.%m.%Y')
 
 
 # Отличие trim_df_spec от trim_df в замене np.nan на Unknown и преобразование
@@ -108,7 +112,7 @@ def trim_df(df):
 
 
 def trim_df_spec(df):
-    trim_df(df)
+    clean_data(df)
     df['Дата'] = df['Дата'].apply(lambda x: x.date())
     df['Дата.1'] = df['Дата.1'].apply(lambda x: x.date())
     df.fillna('Unknown', inplace=True)
