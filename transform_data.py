@@ -1,7 +1,67 @@
-import pandas as pd
 import numpy as np
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+import pandas as pd
+
+
+def transform_names(x):  # Приводит имена к одному формату
+    tmp = x
+    tmp.lower()
+    tmp = tmp.split()
+    tmp = [sup.title() for sup in tmp]
+    new_str = ''
+    for el in tmp:
+        new_str += el
+        new_str += ' '
+    new_str = new_str.strip()
+    return new_str
+
+
+def rang_(input_string):  # Делает из номера ранга строку 'x ранг'
+    sup = str(input_string).split(', ')
+    return str(', '.join([str(x) + ' ранг' for x in sup]))
+
+
+def clean_rangs(df): # Приводит ранги к одному формату
+    df['Ранг кредитора'].replace(' ранг', '', inplace=True)
+    df['Ранг заемщика'].replace(' ранг', '', inplace=True)
+    df['Ранг кредитора'] = df['Ранг кредитора'].astype('str')
+    df['Ранг заемщика'] = df['Ранг заемщика'].astype('str')
+    df['Ранг кредитора'] = df['Ранг кредитора'].apply(rang_)
+    df['Ранг заемщика'] = df['Ранг заемщика'].apply(rang_)
+
+
+def transform_title(df):  # Приводит все строковые колонки к одному формату, кроме имен
+    to_title = ['Пол заемщика', 'Чин заемщика', 'Титул заемщика', 'Чин кредитора', 'Титул кредитора', 'Семейное положение', 'Семейное положение.1', 'Сословие заемщика', 'Сословие кредитора']
+    for el in to_title:
+        df[el] = df[el].apply(lambda x : str(x).lower().title())
+
+
+
+
+def transform_prices(x): # Приводит цены в один формат
+    tmp = str(x)
+    if ',' in tmp[-3:] or '.' in tmp[-3:]:
+        tmp = tmp[:-3] + '.' + tmp[-2:]
+    tmp = tmp.replace(',', '')
+    tmp = tmp.replace(' ', '')
+    tmp =''.join(tmp.split())
+    tmp = ''.join([i for i in tmp if i.isdigit()])
+    return tmp
+
+
+def clean_data(df): # Чистит данные
+    df['Сумма долга'].replace('16 душ', '0', inplace=True)
+    df['Сумма долга'].replace('', '0', inplace=True)
+    df['Сумма долга'].fillna(0, inplace=True)
+    df['Сумма долга'] = df['Сумма долга'].apply(transform_prices)
+    df['Сумма долга'] = df['Сумма долга'].astype(np.float64)
+    df['Заемщик'] = df['Заемщик'].apply(transform_names)
+    transform_title(df)
+    clean_rangs(df)
+    df['Дата сделки'] = df['Дата сделки'].replace('-', np.nan)
+    df['Дата закрытия'] = df['Дата закрытия'].replace('-', np.nan)
+    df['Дата сделки'] = pd.to_datetime(df['Дата сделки'], format='%d.%m.%Y')
+    df['Дата закрытия'] = pd.to_datetime(df['Дата закрытия'], format='%d.%m.%Y')
+
 
 
 def transform_columns(sup):
@@ -35,12 +95,12 @@ def trim_df(df):
     df['Ранг заемщика'] = df['Ранг заемщика'].astype('str')
     df['Ранг кредитора'] = df['Ранг кредитора'].apply(rang_)
     df['Ранг заемщика'] = df['Ранг заемщика'].apply(rang_)
+    # df_obj = df.select_dtypes(['object'])
+    # df[df_obj.columns] = df_obj.astype('str')
     df['Дата'] = df['Дата'].replace('-', np.nan)
     df['Дата.1'] = df['Дата.1'].replace('-', np.nan)
     df['Дата'] = pd.to_datetime(df['Дата'], format='%d.%m.%Y')
     df['Дата.1'] = pd.to_datetime(df['Дата.1'], format='%d.%m.%Y')
-    df_obj = df.select_dtypes(['object'])
-    df[df_obj.columns] = df_obj.astype('str')
 
 
 # Отличие trim_df_spec от trim_df в замене np.nan на Unknown и преобразование
@@ -61,7 +121,7 @@ def trim_df_spec(df):
 def transform_main(gc_, url_):   # Обрабатывает основную таблицу
     dataframe = download_main(gc_, url_)
     trim_df_spec(dataframe)
-    worksheet = gc.open_by_url(url).worksheet('Main_trimmed')
+    worksheet = gc_.open_by_url(url_).worksheet('Main_trimmed')
     worksheet.update([dataframe.columns.values.tolist()] + dataframe.values.tolist())
     worksheet.format("A1:AL1", {
         "backgroundColor": {
@@ -85,7 +145,7 @@ def download_main(gc_, url_):
     return dataframe
 
 
-def get_sparse_matrix(df):
+def get_sparse_matrix(df, gc_, url_):
     new_df = pd.DataFrame()
     trim_df(df)
     df = df[['Заемщик', 'Кредитор', 'Сумма долга']]
@@ -98,7 +158,7 @@ def get_sparse_matrix(df):
         df_transformed.loc[i] = [nam.split('_')[0]] + row.values.tolist()
         i += 1
     df_transformed.fillna(int(0), inplace=True)
-    worksheet = gc.open_by_url(url).worksheet('Перекрестная таблица')
+    worksheet = gc_.open_by_url(url_).worksheet('Перекрестная таблица')
     worksheet.update(df_transformed.values.tolist())
 
 
@@ -133,8 +193,8 @@ def if_group(pas):
 
 def get_ids(df):
     df.fillna('Unknown', inplace=True)
-    debtors = df[['Заемщик', 'Чин заемщика', 'Ранг заемщика', 'Титул заемщика', 'Сословие']]
-    creditors = df[['Кредитор', 'Чин кредитора', 'Ранг кредитора', 'Титул кредитора', 'Сословие.1']]
+    debtors = df[['Заемщик', 'Чин заемщика', 'Ранг заемщика', 'Титул заемщика', 'Сословие заемщика']]
+    creditors = df[['Кредитор', 'Чин кредитора', 'Ранг кредитора', 'Титул кредитора', 'Сословие кредитора']]
     uni = set()
     for row in debtors.itertuples():
         for el in extract(row):
@@ -166,26 +226,26 @@ def get_ids(df):
     df_id['Титул'] = df_id['Титул'].apply(lambda x: x.title())
     df_id['Ранг'] = df_id['Ранг'].apply(lambda x: rang_(x) if x != 'Unknown' else 'Unknown')
     df_id.sort_values(by=['Имя'], inplace=True)
-    worksheet = gc.open_by_url(url).worksheet('id')
-    worksheet.update([df_id.columns.values.tolist()] + df_id.values.tolist())
-    worksheet.format("A1:E1", {
-        "backgroundColor": {
-            "red": 0.248,
-            "green": 0.792,
-            "blue": 0.94
-        }})
-    worksheet.format("A1:E10000", {
-        "wrapStrategy": 'WRAP', "horizontalAlignment": "LEFT"})
+    return df_id
+    # worksheet = gc_.open_by_url(url_).worksheet('id')
+    # worksheet.update([df_id.columns.values.tolist()] + df_id.values.tolist())
+    # worksheet.format("A1:E1", {
+    #     "backgroundColor": {
+    #         "red": 0.248,
+    #         "green": 0.792,
+    #         "blue": 0.94
+    #     }})
+    # worksheet.format("A1:E10000", {
+    #     "wrapStrategy": 'WRAP', "horizontalAlignment": "LEFT"})
 
 
-
-CREDENTIALS_FILE = 'service_account.json'
-
-credentials = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE,
-                                                               ['https://www.googleapis.com/auth/spreadsheets'])
-gc = gspread.authorize(credentials)
-url = 'https://docs.google.com/spreadsheets/d/1MiQ7UPF9T9YXzaadFONsuoXQJUTPs1k1XREEqXfmNzw/edit#gid=1488630400'
-
-transform_main(gc, url)
-get_sparse_matrix(download_main(gc, url))
-get_ids(download_main(gc, url))
+# CREDENTIALS_FILE = 'service_account.json'
+#
+# credentials = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE,
+#                                                                ['https://www.googleapis.com/auth/spreadsheets'])
+# gc = gspread.authorize(credentials)
+# url = 'https://docs.google.com/spreadsheets/d/1MiQ7UPF9T9YXzaadFONsuoXQJUTPs1k1XREEqXfmNzw/edit#gid=1488630400'
+#
+# transform_main(gc, url)
+# get_sparse_matrix(download_main(gc, url))
+# get_ids(download_main(gc, url))
